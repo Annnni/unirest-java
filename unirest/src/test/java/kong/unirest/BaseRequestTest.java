@@ -25,13 +25,17 @@
 
 package kong.unirest;
 
-import com.google.common.collect.ImmutableMap;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.time.temporal.TemporalUnit;
 import java.util.Map;
 
 import static com.google.common.collect.ImmutableMap.of;
+import static kong.unirest.HttpMethod.GET;
 import static org.junit.Assert.*;
 
 public class BaseRequestTest {
@@ -41,6 +45,11 @@ public class BaseRequestTest {
     @Before
     public void setUp() {
         testConfig = new Config();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        Util.resetClock();
     }
 
     @Test
@@ -94,15 +103,15 @@ public class BaseRequestTest {
     @Test
     public void requestEquals_PathAndVerb() {
         assertEquals(
-                new TestRequest(HttpMethod.GET, "/path"),
-                new TestRequest(HttpMethod.GET, "/path")
+                new TestRequest(GET, "/path"),
+                new TestRequest(GET, "/path")
         );
     }
 
     @Test
     public void requestEquals_PathAndVerb_differentVerb() {
         assertNotEquals(
-                new TestRequest(HttpMethod.GET, "/path"),
+                new TestRequest(GET, "/path"),
                 new TestRequest(HttpMethod.HEAD, "/path")
         );
     }
@@ -110,8 +119,8 @@ public class BaseRequestTest {
     @Test
     public void requestEquals_PathAndVerb_differentPath() {
         assertNotEquals(
-                new TestRequest(HttpMethod.GET, "/path"),
-                new TestRequest(HttpMethod.GET, "/derp")
+                new TestRequest(GET, "/path"),
+                new TestRequest(GET, "/derp")
         );
     }
 
@@ -139,14 +148,40 @@ public class BaseRequestTest {
         );
     }
 
+    @Test
+    public void canGetTimeOfRequest() {
+        TestRequest request = new TestRequest();
+
+        assertTrue(ChronoUnit.MILLIS.between(request.getCreationTime(), Instant.now()) < 10);
+    }
+
+    @Test
+    public void canFreezeTimeForTests() {
+        Instant i = Instant.now();
+        Util.freezeClock(i);
+        TestRequest r1 = new TestRequest();
+        TestRequest r2 = new TestRequest();
+
+        assertEquals(r1.getCreationTime(), r2.getCreationTime());
+
+        Util.freezeClock(i.plus(50, ChronoUnit.MINUTES));
+
+        TestRequest r3 = new TestRequest();
+
+        assertEquals(50L, ChronoUnit.MINUTES.between(r1.getCreationTime(), r3.getCreationTime()));
+    }
 
     private class TestRequest extends BaseRequest<TestRequest> {
+        TestRequest(){
+            super(testConfig, GET, "/");
+        }
+
         TestRequest(BaseRequest httpRequest) {
             super(httpRequest);
         }
 
         TestRequest(Config config) {
-            super(config, HttpMethod.GET, "");
+            super(config, GET, "");
         }
 
         TestRequest(HttpMethod method, String url){
@@ -154,7 +189,7 @@ public class BaseRequestTest {
         }
 
         TestRequest(Map<String, String> headers){
-            super(testConfig, HttpMethod.GET, "/");
+            super(testConfig, GET, "/");
             headers.forEach(this::header);
         }
     }

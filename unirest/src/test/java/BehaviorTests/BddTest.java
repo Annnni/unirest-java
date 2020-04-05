@@ -55,6 +55,7 @@ public class BddTest {
     @After @AfterEach
     public void tearDown() {
         Unirest.shutDown(true);
+        TestUtil.reset();
     }
 
     public void assertAsync()  {
